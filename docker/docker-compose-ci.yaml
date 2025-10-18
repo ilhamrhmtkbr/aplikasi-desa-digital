@@ -1,0 +1,55 @@
+services:
+  backend:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.backend
+    container_name: project-13-backend
+    environment:
+      - APP_NAME=Laravel
+      - APP_ENV=testing
+      - APP_KEY=${APP_KEY}
+      - APP_DEBUG=true
+      - APP_URL=http://localhost
+      - APP_LOCALE=id
+      - APP_FALLBACK_LOCALE=id
+      - APP_FAKER_LOCALE=id_ID
+      - PHP_CLI_SERVER_WORKERS=4
+      - BCRYPT_ROUNDS=4
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=laravel
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy  # 👈 Tunggu sampai healthy!
+    networks:
+      - app_net
+
+  mysql:
+    image: mysql:latest
+    container_name: project-13-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: laravel
+    ports:
+      - "3306:3306"
+    networks:
+      - app_net
+    healthcheck:  # 👈 Health check!
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+networks:
+  app_net:
+    name: app_net
+    driver: bridge

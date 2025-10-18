@@ -1,0 +1,71 @@
+services:
+  backend:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.backend
+    container_name: project-13-backend
+    volumes:
+      - ../backend:/var/www/html
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mysql
+    networks:
+      - app_net
+    mem_limit: 512m
+    cpus: 0.5
+
+  frontend:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile.frontend
+    container_name: project-13-frontend
+    depends_on:
+      - backend
+    volumes:
+      - ../frontend:/app
+    ports:
+      - "5173:5173"
+    networks:
+      - app_net
+    mem_limit: 512m
+    cpus: 0.5
+
+  mysql:
+    image: mysql:latest
+    container_name: project-13-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: laravel
+    ports:
+      - "3306:3306"
+    volumes:
+      - "data-mysql:/var/lib/mysql"
+    networks:
+      - app_net
+    mem_limit: 512m
+    cpus: 0.5
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: "2a0uiHZxc8OP2aVKaOn7dUlhG2f_5Fj1qNovroHTHhLxHR5mM"
+    command: "http backend:8000"
+    depends_on:
+      - backend
+    networks:
+      - app_net
+    ports:
+      - "9123:4040"
+
+volumes:
+  data-mysql:
+
+networks:
+  app_net:
+    name: app_net
+    driver: bridge

@@ -1,0 +1,60 @@
+name: Integration Test
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  integration-testing:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate App Key
+        run: |
+          APP_KEY="base64:$(openssl rand -base64 32)"
+          echo "APP_KEY=$APP_KEY" >> $GITHUB_ENV
+          echo "Generated APP_KEY: $APP_KEY"
+
+      - name: Start Docker Services
+        run: |
+          cd docker
+          export APP_KEY="${APP_KEY}"  # 👈 Export agar tersedia untuk docker compose
+          sudo -E docker compose -f docker-compose-ci.yaml up -d
+          echo "Menunggu container stabil..."
+          sleep 15
+          sudo docker ps -a
+
+          # Tunggu MySQL siap
+          for i in {1..30}; do
+            if sudo docker exec project-13-db mysql -uroot -proot -e "SELECT 1" &>/dev/null; then
+              echo "MySQL ready!"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
+
+          # Cek backend masih running
+          if ! sudo docker ps | grep -q project-13-backend; then
+            echo "Backend container crashed!"
+            sudo docker logs project-13-backend
+            exit 1
+          fi
+
+      - name: Run Integration Tests
+        run: |
+          sudo docker exec project-13-backend php artisan test
+
+      - name: Tampilkan Log Backend jika gagal
+        if: failure()
+        run: |
+          sudo docker logs project-13-backend
+
+      - name: Cleanup Docker
+        if: always()
+        run: |
+          cd docker
+          sudo docker compose down -v --remove-orphans
+          sudo docker system prune -f
