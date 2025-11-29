@@ -15,7 +15,8 @@ COPY --from=composer:2 /usr/bin/composer /user/bin/composer
 
 WORKDIR /app
 
-COPY . . 
+COPY . .
+COPY .env.example .env
 
 RUN composer install --no-dev --optimize-autoloader
 
