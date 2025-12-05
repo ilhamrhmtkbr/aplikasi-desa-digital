@@ -1,27 +1,43 @@
 FROM php:8.2-cli
 
 RUN apt-get update && apt-get install -y \
-    git unzip curl \ 
-    libpq-dev libzip-dev zip \ 
-    libpng-dev libjpeg-dev libfreetype6-dev \ 
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_mysql sockets pcntl gd zip \ 
-    && rm -rf /var/lib/apt/lists/*
+    git \
+    unzip \
+    curl \
+    libpq-dev \
+    libzip-dev \
+    zip \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+ && docker-php-ext-configure gd --with-freetype --with-jpeg \
+ && docker-php-ext-install pdo pdo_mysql sockets pcntl gd zip \
+ && rm -rf /var/lib/apt/lists/*
 
-RUN pecl install swoole \ 
-    && docker-php-ext-enable swoole
+RUN pecl install swoole \
+ && docker-php-ext-enable swoole
 
-COPY --from=composer:2 /usr/bin/composer /user/bin/composer
+# Copy composer dari official image dengan path yang benar
+COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
-WORKDIR /app
+# Pastikan composer executable
+RUN chmod +x /usr/local/bin/composer
+
+WORKDIR /var/www/html
 
 COPY . .
-COPY .env.example .env
 
-RUN composer install --no-dev --optimize-autoloader
+# Verifikasi composer terinstall (opsional, untuk debugging)
+RUN which composer && composer --version
 
-RUN mkdir -p storage/logs storage/framework/cache \ 
-    && chmod -R 775 storage bootstrap/cache storage
+RUN composer install --no-dev --optimize-autoloader --no-interaction
+
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 storage bootstrap/cache
+
+RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views \
+    && chown -R www-data:www-data storage bootstrap/cache
 
 EXPOSE 8000
+
 CMD php artisan octane:start --server=swoole --host=0.0.0.0 --port=8000
